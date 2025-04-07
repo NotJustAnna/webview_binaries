@@ -1,0 +1,42 @@
+name: CI
+on: [push, pull_request]
+defaults:
+  run:
+    shell: bash
+jobs:
+  init:
+    runs-on: ubuntu-22.04
+    outputs:
+      gcovr-version: ${{ steps.vars.outputs.gcovr-version }}
+    steps:
+      - id: vars
+        run: |
+          echo "gcovr-version=7.2" >> "${GITHUB_OUTPUT}"
+
+  build:
+    needs:
+      - init
+    uses: ./.github/workflows/build.yaml
+    with:
+      gcovr-version: ${{ needs.init.outputs.gcovr-version }}
+
+  build-pr:
+    if: github.event_name == 'pull_request'
+    needs:
+      - init
+    uses: ./.github/workflows/build.yaml
+    with:
+      gcovr-version: ${{ needs.init.outputs.gcovr-version }}
+      pr: true
+
+  merge-package-artifacts:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Merge package artifacts
+        uses: actions/upload-artifact/merge@v4
+        with:
+          name: package
+          pattern: package_*
+          delete-merged: true
+          retention-days: 1
